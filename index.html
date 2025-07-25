@@ -2,113 +2,155 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Virtual Dressing Room</title>
   <style>
     body, html {
       margin: 0;
       padding: 0;
-      overflow: hidden;
-      background: black;
+      background: #f8f8f8;
+      font-family: 'Segoe UI', sans-serif;
+      color: #333;
     }
-    video, canvas {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
+    header {
+      background: linear-gradient(135deg, #ff7f50, #ff1493);
+      color: #fff;
+      text-align: center;
+      padding: 1rem;
+      font-size: 2rem;
     }
-    .buttons {
-      position: absolute;
-      bottom: 10px;
-      left: 50%;
-      transform: translateX(-50%);
+    .container {
+      max-width: 1000px;
+      margin: 2rem auto;
+      padding: 0 1rem;
+      text-align: center;
+    }
+    .shirt-gallery {
       display: flex;
-      gap: 10px;
-      z-index: 10;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 1rem;
     }
-    button {
-      padding: 10px;
-      background: white;
+    .shirt-gallery img {
+      width: 120px;
+      height: 140px;
+      object-fit: contain;
+      border: 3px solid transparent;
+      border-radius: 8px;
+      transition: transform .2s, border .2s;
+      cursor: pointer;
+    }
+    .shirt-gallery img:hover {
+      transform: scale(1.1);
+    }
+    .shirt-gallery img.selected {
+      border: 3px solid #ff1493;
+    }
+    #tryBtn {
+      margin-top: 2rem;
+      padding: 1rem 2rem;
+      font-size: 1.1rem;
+      background: #ff1493;
+      color: #fff;
       border: none;
-      border-radius: 5px;
+      border-radius: 30px;
+      cursor: pointer;
+      box-shadow: 0 10px 15px rgba(0,0,0,0.1);
+      transition: background .3s;
+    }
+    #tryBtn:hover {
+      background: #ff63b1;
+    }
+    #camera-container {
+      display: none;
+      position: relative;
+      margin-top: 1rem;
+    }
+    video {
+      width: 100%;
+      max-width: 600px;
+      border-radius: 20px;
+      border: 5px solid #ff1493;
+    }
+    #overlay-shirt {
+      position: absolute;
+      top: 25%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 220px;
+      opacity: .9;
+      pointer-events: none;
+      mix-blend-mode: multiply;
+    }
+    #changeShirtBtn {
+      display: none;
+      margin-top: 1rem;
+      padding: .5rem 1rem;
+      font-size: 1rem;
+      background: #333;
+      color: #fff;
+      border: none;
+      border-radius: 20px;
+      cursor: pointer;
     }
   </style>
 </head>
 <body>
+  <header>👕 Shop & Try On</header>
+  <div class="container">
+    <div class="shirt-gallery">
+      <img src="shirt1.png" onclick="selectShirt(this)" alt="Shirt 1">
+      <img src="shirt2.png" onclick="selectShirt(this)" alt="Shirt 2">
+      <img src="shirt3.png" onclick="selectShirt(this)" alt="Shirt 3">
+    </div>
+    <button id="tryBtn" onclick="startCamera()">Try On</button>
 
-  <video id="video" autoplay playsinline></video>
-  <canvas id="output"></canvas>
+    <div id="camera-container">
+      <video id="video" autoplay playsinline muted></video>
+      <img id="overlay-shirt" src="" alt="Overlay Shirt">
+    </div>
 
-  <div class="buttons">
-    <button onclick="setShirt('shirt1.png')">Shirt 1</button>
-    <button onclick="setShirt('shirt2.png')">Shirt 2</button>
-    <button onclick="setShirt('')">Remove</button>
+    <button id="changeShirtBtn" onclick="openGallery()">Choose Different Shirt</button>
   </div>
 
-  <!-- Mediapipe & Camera Scripts -->
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
-
   <script>
-    let currentShirt = null;
-    let shirtImg = new Image();
+    let selectedShirt = "";
 
-    const videoElement = document.getElementById('video');
-    const canvasElement = document.getElementById('output');
-    const canvasCtx = canvasElement.getContext('2d');
-
-    function setShirt(src) {
-      if (src) {
-        shirtImg.src = src;  // 🔥 FIXED LINE (removed 'images/')
-        currentShirt = shirtImg;
-      } else {
-        currentShirt = null;
-      }
+    function selectShirt(img) {
+      document.querySelectorAll('.shirt-gallery img').forEach(i => i.classList.remove("selected"));
+      img.classList.add("selected");
+      selectedShirt = img.src;
     }
 
-    const pose = new Pose.Pose({
-      locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`,
-    });
-    pose.setOptions({
-      modelComplexity: 1,
-      smoothLandmarks: true,
-      enableSegmentation: false,
-      minDetectionConfidence: 0.5,
-      minTrackingConfidence: 0.5,
-    });
-    pose.onResults(onResults);
-
-    const camera = new Camera.Camera(videoElement, {
-      onFrame: async () => {
-        await pose.send({ image: videoElement });
-      },
-      width: 640,
-      height: 480
-    });
-    camera.start();
-
-    function onResults(results) {
-      canvasElement.width = videoElement.videoWidth;
-      canvasElement.height = videoElement.videoHeight;
-
-      canvasCtx.save();
-      canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
-      canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
-
-      if (currentShirt && results.poseLandmarks) {
-        const leftShoulder = results.poseLandmarks[11];
-        const rightShoulder = results.poseLandmarks[12];
-
-        const x = (leftShoulder.x + rightShoulder.x) / 2 * canvasElement.width;
-        const y = (leftShoulder.y + rightShoulder.y) / 2 * canvasElement.height;
-
-        const shirtWidth = Math.abs(rightShoulder.x - leftShoulder.x) * canvasElement.width * 1.8;
-        const shirtHeight = shirtWidth * 1.2;
-
-        canvasCtx.drawImage(currentShirt, x - shirtWidth / 2, y, shirtWidth, shirtHeight);
+    function startCamera() {
+      if (!selectedShirt) {
+        alert("Select a shirt first!");
+        return;
       }
+      document.getElementById("overlay-shirt").src = selectedShirt;
+      document.querySelector(".shirt-gallery").style.display = "none";
+      document.getElementById("tryBtn").style.display = "none";
+      document.getElementById("camera-container").style.display = "block";
+      document.getElementById("changeShirtBtn").style.display = "inline-block";
 
-      canvasCtx.restore();
+      navigator.mediaDevices.getUserMedia({ video: true })
+        .then(stream => document.getElementById("video").srcObject = stream)
+        .catch(err => {
+          console.error("Camera error:", err);
+          alert("Cannot access camera.");
+        });
+    }
+
+    function openGallery() {
+      document.getElementById("camera-container").style.display = "none";
+      document.getElementById("changeShirtBtn").style.display = "none";
+      document.querySelector(".shirt-gallery").style.display = "flex";
+      document.getElementById("tryBtn").style.display = "inline-block";
+      document.getElementById("overlay-shirt").src = "";
+      const video = document.getElementById("video");
+      if (video.srcObject) {
+        video.srcObject.getTracks().forEach(t => t.stop());
+      }
     }
   </script>
 </body>
