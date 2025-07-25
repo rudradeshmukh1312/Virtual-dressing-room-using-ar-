@@ -1,157 +1,86 @@
-<!DOCTYPE html>
-<html lang="en">
+<!DOCTYPE html><html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Virtual Dressing Room</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Virtual Shirt Try-On</title>
   <style>
-    body, html {
+    body {
       margin: 0;
-      padding: 0;
-      background: #f8f8f8;
-      font-family: 'Segoe UI', sans-serif;
-      color: #333;
+      overflow: hidden;
+      background-color: #000;
     }
-    header {
-      background: linear-gradient(135deg, #ff7f50, #ff1493);
-      color: #fff;
-      text-align: center;
-      padding: 1rem;
-      font-size: 2rem;
-    }
-    .container {
-      max-width: 1000px;
-      margin: 2rem auto;
-      padding: 0 1rem;
-      text-align: center;
-    }
-    .shirt-gallery {
-      display: flex;
-      justify-content: center;
-      flex-wrap: wrap;
-      gap: 1rem;
-    }
-    .shirt-gallery img {
-      width: 120px;
-      height: 140px;
-      object-fit: contain;
-      border: 3px solid transparent;
-      border-radius: 8px;
-      transition: transform .2s, border .2s;
-      cursor: pointer;
-    }
-    .shirt-gallery img:hover {
-      transform: scale(1.1);
-    }
-    .shirt-gallery img.selected {
-      border: 3px solid #ff1493;
-    }
-    #tryBtn {
-      margin-top: 2rem;
-      padding: 1rem 2rem;
-      font-size: 1.1rem;
-      background: #ff1493;
-      color: #fff;
-      border: none;
-      border-radius: 30px;
-      cursor: pointer;
-      box-shadow: 0 10px 15px rgba(0,0,0,0.1);
-      transition: background .3s;
-    }
-    #tryBtn:hover {
-      background: #ff63b1;
-    }
-    #camera-container {
-      display: none;
-      position: relative;
-      margin-top: 1rem;
-    }
-    video {
-      width: 100%;
-      max-width: 600px;
-      border-radius: 20px;
-      border: 5px solid #ff1493;
-    }
-    #overlay-shirt {
+    canvas, video {
       position: absolute;
-      top: 25%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      width: 220px;
-      opacity: .9;
-      pointer-events: none;
-      mix-blend-mode: multiply;
+      top: 0;
+      left: 0;
     }
-    #changeShirtBtn {
+    #shirt {
       display: none;
-      margin-top: 1rem;
-      padding: .5rem 1rem;
-      font-size: 1rem;
-      background: #333;
-      color: #fff;
-      border: none;
-      border-radius: 20px;
-      cursor: pointer;
     }
   </style>
 </head>
 <body>
-  <header>👕 Shop & Try On</header>
-  <div class="container">
-    <div class="shirt-gallery">
-      <img src="shirt1.png" onclick="selectShirt(this)" alt="Shirt 1">
-      <img src="shirt2.png" onclick="selectShirt(this)" alt="Shirt 2">
-      <img src="shirt3.png" onclick="selectShirt(this)" alt="Shirt 3">
-    </div>
-    <button id="tryBtn" onclick="startCamera()">Try On</button>
+  <video id="video" autoplay muted playsinline></video>
+  <canvas id="canvas"></canvas>
+  <img id="shirt" src="shirt1.png" />  <script type="module">
+    import * as poseDetection from 'https://cdn.skypack.dev/@tensorflow-models/pose-detection';
+    import { Camera } from 'https://cdn.skypack.dev/@mediapipe/camera_utils';
+    import '@tensorflow/tfjs-backend-webgl';
 
-    <div id="camera-container">
-      <video id="video" autoplay playsinline muted></video>
-      <img id="overlay-shirt" src="" alt="Overlay Shirt">
-    </div>
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const shirt = document.getElementById('shirt');
 
-    <button id="changeShirtBtn" onclick="openGallery()">Choose Different Shirt</button>
-  </div>
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    video.width = window.innerWidth;
+    video.height = window.innerHeight;
 
-  <script>
-    let selectedShirt = "";
+    const detector = await poseDetection.createDetector(poseDetection.SupportedModels.MoveNet);
 
-    function selectShirt(img) {
-      document.querySelectorAll('.shirt-gallery img').forEach(i => i.classList.remove("selected"));
-      img.classList.add("selected");
-      selectedShirt = img.src;
+    async function setupCamera() {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      video.srcObject = stream;
+      return new Promise(resolve => {
+        video.onloadedmetadata = () => {
+          resolve(video);
+        };
+      });
     }
 
-    function startCamera() {
-      if (!selectedShirt) {
-        alert("Select a shirt first!");
-        return;
+    async function detectPose() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+      const poses = await detector.estimatePoses(video);
+
+      if (poses.length > 0) {
+        const keypoints = poses[0].keypoints;
+        const leftShoulder = keypoints.find(p => p.name === 'left_shoulder');
+        const rightShoulder = keypoints.find(p => p.name === 'right_shoulder');
+
+        if (leftShoulder && rightShoulder && leftShoulder.score > 0.4 && rightShoulder.score > 0.4) {
+          const x = (leftShoulder.x + rightShoulder.x) / 2;
+          const y = (leftShoulder.y + rightShoulder.y) / 2;
+          const width = Math.abs(rightShoulder.x - leftShoulder.x) * 1.5;
+          const height = width * 1.2;
+          ctx.drawImage(shirt, x - width / 2, y - height / 2, width, height);
+
+          // Draw lines (for visual debug)
+          ctx.beginPath();
+          ctx.strokeStyle = 'red';
+          ctx.lineWidth = 2;
+          ctx.moveTo(leftShoulder.x, leftShoulder.y);
+          ctx.lineTo(rightShoulder.x, rightShoulder.y);
+          ctx.stroke();
+        }
       }
-      document.getElementById("overlay-shirt").src = selectedShirt;
-      document.querySelector(".shirt-gallery").style.display = "none";
-      document.getElementById("tryBtn").style.display = "none";
-      document.getElementById("camera-container").style.display = "block";
-      document.getElementById("changeShirtBtn").style.display = "inline-block";
 
-      navigator.mediaDevices.getUserMedia({ video: true })
-        .then(stream => document.getElementById("video").srcObject = stream)
-        .catch(err => {
-          console.error("Camera error:", err);
-          alert("Cannot access camera.");
-        });
+      requestAnimationFrame(detectPose);
     }
 
-    function openGallery() {
-      document.getElementById("camera-container").style.display = "none";
-      document.getElementById("changeShirtBtn").style.display = "none";
-      document.querySelector(".shirt-gallery").style.display = "flex";
-      document.getElementById("tryBtn").style.display = "inline-block";
-      document.getElementById("overlay-shirt").src = "";
-      const video = document.getElementById("video");
-      if (video.srcObject) {
-        video.srcObject.getTracks().forEach(t => t.stop());
-      }
-    }
-  </script>
-</body>
+    await setupCamera();
+    detectPose();
+  </script></body>
 </html>
