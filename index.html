@@ -59,7 +59,7 @@
 
     function setShirt(src) {
       if (src) {
-        shirtImg.src = 'images/' + src;
+        shirtImg.src = src;  // 🔥 FIXED LINE (removed 'images/')
         currentShirt = shirtImg;
       } else {
         currentShirt = null;
@@ -112,3 +112,4 @@
     }
   </script>
 </body>
+</html>
