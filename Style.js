@@ -1,48 +1,11 @@
-body {
-  margin: 0;
-  padding: 0;
-  font-family: Arial, sans-serif;
-  background: #f0f0f0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
+const video = document.getElementById('video');
+const shirtOverlay = document.getElementById('shirt-overlay');
 
-h1 {
-  margin: 20px;
-}
+navigator.mediaDevices.getUserMedia({ video: true })
+  .then((stream) => {
+    video.srcObject = stream;
+  })
+  .catch((err) => {
+    console.error('Error accessing webcam:', err);
+  });
 
-#video {
-  border: 2px solid #444;
-  border-radius: 8px;
-  margin-top: 10px;
-  max-width: 100%;
-}
-
-#shirt-overlay {
-  position: absolute;
-  top: 100px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 200px;
-  pointer-events: none;
-}
-
-#container {
-  position: relative;
-  margin-top: 20px;
-}
-
-button {
-  margin: 15px;
-  padding: 10px 20px;
-  background-color: #007bff;
-  color: white;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-}
-
-button:hover {
-  background-color: #0056b3;
-}
