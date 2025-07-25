@@ -1,86 +1,102 @@
-<!DOCTYPE html><html lang="en">
+<!DOCTYPE html>
+<html>
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Virtual Shirt Try-On</title>
+  <title>Virtual Dress Try-On</title>
   <style>
     body {
       margin: 0;
-      overflow: hidden;
-      background-color: #000;
+      font-family: Arial, sans-serif;
+      background-color: #111;
+      color: white;
+      text-align: center;
     }
     canvas, video {
       position: absolute;
       top: 0;
       left: 0;
     }
-    #shirt {
-      display: none;
+    #start-btn {
+      position: relative;
+      margin-top: 50px;
+      padding: 10px 20px;
+      font-size: 18px;
+      cursor: pointer;
+      z-index: 2;
+    }
+    #camera-wrapper {
+      position: relative;
+      width: 100%;
+      max-width: 720px;
+      margin: auto;
     }
   </style>
 </head>
 <body>
-  <video id="video" autoplay muted playsinline></video>
-  <canvas id="canvas"></canvas>
-  <img id="shirt" src="shirt1.png" />  <script type="module">
-    import * as poseDetection from 'https://cdn.skypack.dev/@tensorflow-models/pose-detection';
-    import { Camera } from 'https://cdn.skypack.dev/@mediapipe/camera_utils';
-    import '@tensorflow/tfjs-backend-webgl';
 
-    const video = document.getElementById('video');
-    const canvas = document.getElementById('canvas');
-    const ctx = canvas.getContext('2d');
-    const shirt = document.getElementById('shirt');
+  <h1>Virtual Dress Try-On (Pose Mode)</h1>
+  <button id="start-btn">Start Camera</button>
+  <div id="camera-wrapper">
+    <video id="video" width="720" height="560" autoplay muted playsinline></video>
+    <canvas id="canvas" width="720" height="560"></canvas>
+  </div>
 
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-    video.width = window.innerWidth;
-    video.height = window.innerHeight;
+  <!-- MediaPipe Classic Pose + Camera Utils -->
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
 
-    const detector = await poseDetection.createDetector(poseDetection.SupportedModels.MoveNet);
+  <script>
+    const videoElement = document.getElementById('video');
+    const canvasElement = document.getElementById('canvas');
+    const canvasCtx = canvasElement.getContext('2d');
 
-    async function setupCamera() {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-      video.srcObject = stream;
-      return new Promise(resolve => {
-        video.onloadedmetadata = () => {
-          resolve(video);
-        };
+    let pose;
+
+    document.getElementById('start-btn').onclick = async () => {
+      pose = new Pose.Pose({
+        locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`
       });
-    }
 
-    async function detectPose() {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      pose.setOptions({
+        modelComplexity: 1,
+        smoothLandmarks: true,
+        enableSegmentation: false,
+        minDetectionConfidence: 0.5,
+        minTrackingConfidence: 0.5
+      });
 
-      const poses = await detector.estimatePoses(video);
+      pose.onResults(onResults);
 
-      if (poses.length > 0) {
-        const keypoints = poses[0].keypoints;
-        const leftShoulder = keypoints.find(p => p.name === 'left_shoulder');
-        const rightShoulder = keypoints.find(p => p.name === 'right_shoulder');
+      const camera = new Camera.Camera(videoElement, {
+        onFrame: async () => {
+          await pose.send({ image: videoElement });
+        },
+        width: 720,
+        height: 560
+      });
 
-        if (leftShoulder && rightShoulder && leftShoulder.score > 0.4 && rightShoulder.score > 0.4) {
-          const x = (leftShoulder.x + rightShoulder.x) / 2;
-          const y = (leftShoulder.y + rightShoulder.y) / 2;
-          const width = Math.abs(rightShoulder.x - leftShoulder.x) * 1.5;
-          const height = width * 1.2;
-          ctx.drawImage(shirt, x - width / 2, y - height / 2, width, height);
+      camera.start();
+    };
 
-          // Draw lines (for visual debug)
-          ctx.beginPath();
-          ctx.strokeStyle = 'red';
-          ctx.lineWidth = 2;
-          ctx.moveTo(leftShoulder.x, leftShoulder.y);
-          ctx.lineTo(rightShoulder.x, rightShoulder.y);
-          ctx.stroke();
+    function onResults(results) {
+      canvasCtx.save();
+      canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+      canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
+
+      if (results.poseLandmarks) {
+        for (let i = 0; i < results.poseLandmarks.length; i++) {
+          const point = results.poseLandmarks[i];
+          const x = point.x * canvasElement.width;
+          const y = point.y * canvasElement.height;
+
+          canvasCtx.beginPath();
+          canvasCtx.arc(x, y, 5, 0, 2 * Math.PI);
+          canvasCtx.fillStyle = ([11, 12, 23, 24].includes(i)) ? "red" : "lime";
+          canvasCtx.fill();
         }
       }
 
-      requestAnimationFrame(detectPose);
+      canvasCtx.restore();
     }
-
-    await setupCamera();
-    detectPose();
-  </script></body>
+  </script>
+</body>
 </html>
