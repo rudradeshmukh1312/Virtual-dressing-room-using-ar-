@@ -53,7 +53,18 @@ function onResults(results) {
     const shirtWidth = Math.abs(rightShoulder.x - leftShoulder.x) * canvasElement.width * 1.8;
     const shirtHeight = shirtWidth * 1.2;
 
-    canvasCtx.drawImage(currentShirt, x - shirtWidth / 2, y, shirtWidth, shirtHeight);
+   // Calculate rotation angle based on shoulder slope
+const shoulderAngle = Math.atan2(rightShoulder.y - leftShoulder.y, rightShoulder.x - leftShoulder.x);
+
+// Move the shirt a bit below shoulders (optional)
+const adjustedY = y + shirtWidth * 0.3;
+
+// Rotate & draw shirt aligned with shoulders
+canvasCtx.translate(x, adjustedY);
+canvasCtx.rotate(shoulderAngle);
+canvasCtx.drawImage(currentShirt, -shirtWidth / 2, 0, shirtWidth, shirtHeight);
+canvasCtx.rotate(-shoulderAngle);
+canvasCtx.translate(-x, -adjustedY);
   }
 
   canvasCtx.restore();
