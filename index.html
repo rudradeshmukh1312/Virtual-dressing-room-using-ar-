@@ -81,6 +81,7 @@
       opacity: .9;
       pointer-events: none;
       mix-blend-mode: multiply;
+      transition: transform 0.05s linear;
     }
     #changeShirtBtn {
       display: none;
@@ -94,6 +95,11 @@
       cursor: pointer;
     }
   </style>
+
+  <!-- MediaPipe Pose Libraries -->
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
 </head>
 <body>
   <header>👕 Shop & Try On</header>
@@ -107,6 +113,7 @@
 
     <div id="camera-container">
       <video id="video" autoplay playsinline muted></video>
+      <canvas id="poseCanvas" width="600" height="480" style="display:none;"></canvas>
       <img id="overlay-shirt" src="" alt="Overlay Shirt">
     </div>
 
@@ -115,6 +122,8 @@
 
   <script>
     let selectedShirt = "";
+    let camera = null;
+    let pose = null;
 
     function selectShirt(img) {
       document.querySelectorAll('.shirt-gallery img').forEach(i => i.classList.remove("selected"));
@@ -122,23 +131,56 @@
       selectedShirt = img.src;
     }
 
-    function startCamera() {
+    async function startCamera() {
       if (!selectedShirt) {
         alert("Select a shirt first!");
         return;
       }
+
       document.getElementById("overlay-shirt").src = selectedShirt;
       document.querySelector(".shirt-gallery").style.display = "none";
       document.getElementById("tryBtn").style.display = "none";
       document.getElementById("camera-container").style.display = "block";
       document.getElementById("changeShirtBtn").style.display = "inline-block";
 
-      navigator.mediaDevices.getUserMedia({ video: true })
-        .then(stream => document.getElementById("video").srcObject = stream)
-        .catch(err => {
-          console.error("Camera error:", err);
-          alert("Cannot access camera.");
-        });
+      const videoElement = document.getElementById('video');
+      const poseCanvas = document.getElementById('poseCanvas');
+      const ctx = poseCanvas.getContext('2d');
+
+      pose = new Pose.Pose({
+        locateFile: (file) => https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}
+      });
+
+      pose.setOptions({
+        modelComplexity: 1,
+        smoothLandmarks: true,
+        enableSegmentation: false,
+        minDetectionConfidence: 0.5,
+        minTrackingConfidence: 0.5
+      });
+
+      pose.onResults((results) => {
+        if (!results.poseLandmarks) return;
+        const left = results.poseLandmarks[11];
+        const right = results.poseLandmarks[12];
+        if (!left || !right) return;
+
+        const dx = right.x - left.x;
+        const dy = right.y - left.y;
+        const angleDeg = Math.atan2(dy, dx) * (180 / Math.PI);
+        const overlay = document.getElementById('overlay-shirt');
+        overlay.style.transform = translate(-50%, -50%) rotate(${angleDeg}deg);
+      });
+
+      camera = new Camera(videoElement, {
+        onFrame: async () => {
+          await pose.send({ image: videoElement });
+        },
+        width: 600,
+        height: 480
+      });
+
+      camera.start();
     }
 
     function openGallery() {
@@ -147,9 +189,10 @@
       document.querySelector(".shirt-gallery").style.display = "flex";
       document.getElementById("tryBtn").style.display = "inline-block";
       document.getElementById("overlay-shirt").src = "";
-      const video = document.getElementById("video");
-      if (video.srcObject) {
-        video.srcObject.getTracks().forEach(t => t.stop());
+
+      if (camera) {
+        camera.stop();
+        camera = null;
       }
     }
   </script>
