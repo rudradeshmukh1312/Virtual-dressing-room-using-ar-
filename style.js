@@ -15,7 +15,7 @@ function setShirt(src) {
 }
 
 const pose = new Pose.Pose({
-  locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`,
+  locateFile: (file) => https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file},
 });
 pose.setOptions({
   modelComplexity: 1,
@@ -47,13 +47,30 @@ function onResults(results) {
     const leftShoulder = results.poseLandmarks[11];
     const rightShoulder = results.poseLandmarks[12];
 
+    // Calculate shirt position and size
     const x = (leftShoulder.x + rightShoulder.x) / 2 * canvasElement.width;
     const y = (leftShoulder.y + rightShoulder.y) / 2 * canvasElement.height;
 
     const shirtWidth = Math.abs(rightShoulder.x - leftShoulder.x) * canvasElement.width * 1.8;
     const shirtHeight = shirtWidth * 1.2;
 
-    canvasCtx.drawImage(currentShirt, x - shirtWidth / 2, y, shirtWidth, shirtHeight);
+    // Calculate rotation angle (based on shoulder alignment)
+    const dx = (rightShoulder.x - leftShoulder.x) * canvasElement.width;
+    const dy = (rightShoulder.y - leftShoulder.y) * canvasElement.height;
+    const angle = Math.atan2(dy, dx); // radians
+
+    // Draw rotated shirt
+    canvasCtx.translate(x, y);
+    canvasCtx.rotate(angle);
+    canvasCtx.drawImage(
+      currentShirt,
+      -shirtWidth / 2,
+      0,
+      shirtWidth,
+      shirtHeight
+    );
+    canvasCtx.rotate(-angle);
+    canvasCtx.translate(-x, -y);
   }
 
   canvasCtx.restore();
