@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Virtual Dressing Room</title>
+  <link rel="stylesheet" href="script.css" />
+</head>
+<body>
+  <header>👗 Virtual Dressing Room</header>
+  <main class="container">
+    <section class="hero">
+      <div>
+        <h1>Try on shirts in real time</h1>
+        <p>Select a shirt, allow camera access, and watch the overlay track your shoulders.</p>
+      </div>
+    </section>
+
+    <section class="gallery" id="gallery">
+      <div class="product-card">
+        <img src="shirt1.png" alt="Shirt 1" onclick="selectShirt('shirt1.png', this)" />
+        <h3>Casual Shirt</h3>
+        <p>₹150</p>
+      </div>
+      <div class="product-card">
+        <img src="shirt2.png" alt="Shirt 2" onclick="selectShirt('shirt2.png', this)" />
+        <h3>Formal Shirt</h3>
+        <p>₹250</p>
+      </div>
+      <div class="product-card">
+        <img src="shirt3.png" alt="Shirt 3" onclick="selectShirt('shirt3.png', this)" />
+        <h3>Graphic Tee</h3>
+        <p>₹200</p>
+      </div>
+    </section>
+
+    <div class="actions">
+      <button id="tryBtn" class="primary-btn" onclick="startCamera()">Try On</button>
+    </div>
+
+    <section class="camera-panel" id="camera-panel">
+      <div class="video-frame">
+        <video id="video" autoplay playsinline muted></video>
+        <canvas id="output"></canvas>
+      </div>
+
+      <div class="panel-actions">
+        <button id="snapshotBtn" class="secondary-btn" onclick="takeSnapshot()">Snapshot</button>
+        <button id="changeShirtBtn" class="secondary-btn" onclick="openGallery()">Choose Different Shirt</button>
+      </div>
+
+      <p class="status-text" id="statusText">Select a shirt and press Try On.</p>
+    </section>
+  </main>
+
+  <script src="style.js"></script>
+</body>
+</html>
